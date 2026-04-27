@@ -13336,7 +13336,9 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
             self.updateScrollbars()
             self.ax1.sigRangeChanged.disconnect()
             self.ax1.setHighlighted(False)
-            QTimer.singleShot(150, self.autoRange)
+            x_auto, y_auto = self.ax1.vb.autoRangeEnabled()
+            if x_auto and y_auto:
+                QTimer.singleShot(150, self.autoRange)
         
         self.setManualAnnotModeEnabledTools(checked)
     
@@ -14608,7 +14610,9 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
         self.bottomScrollArea.setFixedHeight(newBottomLayoutHeight)
     
     def resizeBottomLayoutLineReleased(self):
-        QTimer.singleShot(100, self.autoRange)
+        x_auto, y_auto = self.ax1.vb.autoRangeEnabled()
+        if x_auto and y_auto:
+            QTimer.singleShot(100, self.autoRange)
     
     def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.RightButton:
@@ -33088,8 +33092,15 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
         self.zSliceCheckbox.setStyleSheet(checkBoxStyleSheet)
 
     def resizeEvent(self, event):
-        if hasattr(self, 'ax1'):
+        if not hasattr(self, 'ax1'):
+            return
+        x_auto, y_auto = self.ax1.vb.autoRangeEnabled()
+        if x_auto and y_auto:
             self.ax1.autoRange()
+        else:
+            # User has zoomed: preserve the current view range
+            xRange, yRange = self.ax1.viewRange()
+            self.ax1.vb.setRange(xRange=xRange, yRange=yRange, padding=0)
     
     def hoverEventDrawSpline(self, event):
         x, y = event.pos()
