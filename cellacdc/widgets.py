@@ -6733,14 +6733,28 @@ class NoneWidget:
     def setValue(self, value):
         return
 
+class MainViewBox(pg.ViewBox):
+    sigWheeled = Signal(object)
+
+    def wheelEvent(self, ev, axis=None):
+        self._wheelConsumed = False
+        self.sigWheeled.emit(ev)
+        if self._wheelConsumed:
+            ev.accept()
+            return
+        super().wheelEvent(ev, axis)
+
+
 class MainPlotItem(pg.PlotItem):
     def __init__(
-            self, parent=None, name=None, labels=None, title=None, 
-            viewBox=None, axisItems=None, enableMenu=True, 
+            self, parent=None, name=None, labels=None, title=None,
+            viewBox=None, axisItems=None, enableMenu=True,
             showWelcomeText=False, **kargs
         ):
+        if viewBox is None:
+            viewBox = MainViewBox()
         super().__init__(
-            parent, name, labels, title, viewBox, axisItems, enableMenu, 
+            parent, name, labels, title, viewBox, axisItems, enableMenu,
             **kargs
         )
         # Overwrite zoom out button behaviour to disable autoRange after

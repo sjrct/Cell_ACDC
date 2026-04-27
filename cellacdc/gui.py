@@ -4947,6 +4947,19 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
         self.imgGradRight.gradient.showMenu = self.gui_rightImageShowContextMenu
         # self.imgGrad.vb.contextMenuEvent = self.gui_gradientContextMenuEvent
         self.ax1.sigRangeChanged.connect(self.viewRangeChanged)
+        self.ax1.vb.sigWheeled.connect(self._onViewWheeled)
+
+    def _onViewWheeled(self, ev):
+        if not self.brushButton.isChecked() and not self.eraserButton.isChecked():
+            return
+        if QGuiApplication.keyboardModifiers() != Qt.AltModifier:
+            return
+        brushSize = self.brushSizeSpinbox.value()
+        if ev.delta() > 0:
+            self.brushSizeSpinbox.setValue(brushSize + 1)
+        else:
+            self.brushSizeSpinbox.setValue(brushSize - 1)
+        self.ax1.vb._wheelConsumed = True
 
     def gui_initImg1BottomWidgets(self):
         self.zSliceScrollBar.hide()
