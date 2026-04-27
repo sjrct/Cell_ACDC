@@ -52,9 +52,10 @@ from qtpy.QtGui import (
 from qtpy.QtWidgets import (
     QAction, QLabel, QPushButton, QHBoxLayout, QSizePolicy,
     QMainWindow, QMenu, QToolBar, QGroupBox, QGridLayout,
-    QScrollBar, QCheckBox, QToolButton, QSpinBox, QButtonGroup, QActionGroup, QFileDialog, QAbstractSlider, QMessageBox, QWidget, QGridLayout, 
-    QDockWidget, QGraphicsProxyWidget, QVBoxLayout, QRadioButton, 
-    QSpacerItem, QScrollArea, QFormLayout, QGraphicsSceneMouseEvent 
+    QScrollBar, QCheckBox, QToolButton, QSpinBox, QButtonGroup, QActionGroup, QFileDialog, QAbstractSlider, QMessageBox, QWidget, QGridLayout,
+    QDockWidget, QGraphicsProxyWidget, QVBoxLayout, QRadioButton,
+    QSpacerItem, QScrollArea, QFormLayout, QGraphicsSceneMouseEvent,
+    QToolTip
 )
 
 import pyqtgraph as pg
@@ -200,8 +201,22 @@ def resetViewRange(func):
         return result
     return inner_function
       
+class _TooltipRefreshFilter(QObject):
+    """Force Qt to hide and recreate the tooltip window on each hover.
+
+    Qt reuses the QTipLabel window when switching between adjacent buttons,
+    updating the text without repositioning — this causes the text to appear
+    at the wrong offset within the old window when using HTML tooltips.
+    Hiding before each new tooltip event prevents the reuse.
+    """
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.ToolTip:
+            QToolTip.hideText()
+        return False
+
+
 class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
-             gui_combine.CombineGuiElements, 
+             gui_combine.CombineGuiElements,
              gui_combine.CombineGUIWorker):
     """Main Window."""
 
@@ -260,8 +275,11 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
                     tooltip
                 )
             
-            getattr(self, key).setToolTip(tooltip)
+            getattr(self, key).setToolTip(load.tooltip_to_html(tooltip))
             getattr(self, key)._tooltip = tooltip
+
+        self._tooltipRefreshFilter = _TooltipRefreshFilter(self.app)
+        self.app.installEventFilter(self._tooltipRefreshFilter)
 
     def run(self, module='acdc_gui', logs_path=None):        
         self.setWindowIcon()
@@ -2452,7 +2470,7 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
                 toolName = "MISSING"
                 continue
             else:
-                toolName = re.findall(r'Name: (.*)', button.toolTip())[0]
+                toolName = re.findall(r'Name: (.*)', button._tooltip)[0]
             keepToolActiveNames[toolName] = button
         
         keepToolActiveNames = dict(natsorted(keepToolActiveNames.items()))
@@ -9350,7 +9368,7 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
     def keepToolActiveActionToggled(self, checked, toolName=None):
         if toolName is None:
             parentToolButton = self.sender().parent()
-            toolName = re.findall(r'Name: (.*)', parentToolButton.toolTip())[0]
+            toolName = re.findall(r'Name: (.*)', parentToolButton._tooltip)[0]
 
         if checked:
             self.df_settings.at[toolName, 'value'] = 'keepActive'
@@ -9363,7 +9381,7 @@ class guiWin(QMainWindow, whitelist.WhitelistGUIElements,
     def applyToolNewFrameActionToggled(self, checked, toolName=None):
         if toolName is None:
             parentToolButton = self.sender().parent()
-            toolName = re.findall(r'Name: (.*)', parentToolButton.toolTip())[0]
+            toolName = re.findall(r'Name: (.*)', parentToolButton._tooltip)[0]
         toolName = toolName.strip()
         button = self.applyToolNewFrameButtons[toolName]
         toolName = toolName.replace(' ', '_')
